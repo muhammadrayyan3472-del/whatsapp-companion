@@ -27,7 +27,7 @@ jobs:
       - name: Add Android platform
         run: npx cap add android
 
-      - name: Configure Android Permissions, Fit Screen & Back Button
+      - name: Configure Android Permissions, Native 100% Mobile Scale & Back Button
         run: |
           FILE=android/app/src/main/AndroidManifest.xml
           sed -i 's#<manifest xmlns:android="http://schemas.android.com/apk/res/android">#<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />#' "$FILE"
@@ -57,28 +57,35 @@ jobs:
                           if (webView != null) {
                               WebSettings settings = webView.getSettings();
 
-                              // 1. Force desktop web layout to fit mobile screen width:
+                              // Lock to 100% native mobile scale (NO microscopic shrinking):
                               settings.setUseWideViewPort(true);
-                              settings.setLoadWithOverviewMode(true);
+                              settings.setLoadWithOverviewMode(false);
+                              webView.setInitialScale(100);
 
-                              // 2. Enable Pinch-to-Zoom (user can zoom in/out freely):
+                              // Text at 100% native size
+                              settings.setTextZoom(100);
+
+                              // Allow pinch zoom if user desires, but default is 100% normal size
                               settings.setSupportZoom(true);
                               settings.setBuiltInZoomControls(true);
                               settings.setDisplayZoomControls(false);
 
-                              // 3. Fix font zoom to 100% so system font settings do not break layout:
-                              settings.setTextZoom(100);
-
-                              // 4. Enable modern web features:
                               settings.setDomStorageEnabled(true);
                               settings.setDatabaseEnabled(true);
                               settings.setJavaScriptEnabled(true);
                           }
 
-                          // 5. Inject auto-fit styling when WhatsApp Web finishes loading:
+                          // Inject responsive CSS & 1:1 mobile viewport so text and buttons are large and readable:
                           bridge.addWebViewListener(new WebViewListener() {
                               @Override
                               public void onPageLoaded(WebView webView) {
+                                  String css = "html, body { width: 100% !important; min-width: 100% !important; overflow-x: hidden !important; }" +
+                                               "#app, #app > div { min-width: unset !important; width: 100% !important; }" +
+                                               "[data-ref], [data-testid='qrcode'] { max-width: 95vw !important; margin: 0 auto !important; }" +
+                                               "#side { min-width: 100% !important; width: 100% !important; }" +
+                                               "#main { min-width: 100% !important; width: 100% !important; }" +
+                                               "div[role='button'], button { min-height: 44px !important; }";
+
                                   String js = "javascript:(function() {" +
                                       "var meta = null;" +
                                       "var metas = document.getElementsByTagName('meta');" +
@@ -90,9 +97,14 @@ jobs:
                                       "  meta.name = 'viewport';" +
                                       "  document.head.appendChild(meta);" +
                                       "}" +
-                                      "meta.content = 'width=1024, user-scalable=yes';" +
-                                      "document.documentElement.style.overflowX = 'hidden';" +
-                                      "document.body.style.overflowX = 'hidden';" +
+                                      "meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=2.5, user-scalable=yes';" +
+                                      "var style = document.getElementById('wa-mobile-fix');" +
+                                      "if (!style) {" +
+                                      "  style = document.createElement('style');" +
+                                      "  style.id = 'wa-mobile-fix';" +
+                                      "  style.innerHTML = '" + css + "';" +
+                                      "  document.head.appendChild(style);" +
+                                      "}" +
                                       "})();";
                                   webView.evaluateJavascript(js, null);
                               }
@@ -135,20 +147,20 @@ jobs:
         run: ./gradlew assembleDebug --stacktrace
 
       - name: Rename APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk WhatsApp-Companion-v1.0.1.apk
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk WhatsApp-Companion-v1.0.2.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: WhatsApp-Companion-APK-v1.0.1
-          path: WhatsApp-Companion-v1.0.1.apk
+          name: WhatsApp-Companion-APK-v1.0.2
+          path: WhatsApp-Companion-v1.0.2.apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.1
-          name: "WhatsApp Companion v1.0.1 (Vivo V23e & Mobile Screen Fit Fix)"
-          body: "Direct 1-click APK download. Fixed screen fitting for Vivo V23e and all Android phones (Auto-scaled to fit screen + Pinch-to-zoom enabled)."
-          files: WhatsApp-Companion-v1.0.1.apk
+          tag_name: v1.0.2
+          name: "WhatsApp Companion v1.0.2 (Native 100% Mobile Scale - No Zoom Required)"
+          body: "Direct 1-click APK download. Fixed microscopic zooming issue: Now rendered at 100% native mobile scale. Big readable text, large buttons, no pinch-to-zoom needed."
+          files: WhatsApp-Companion-v1.0.2.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
