@@ -27,7 +27,7 @@ jobs:
       - name: Add Android platform
         run: npx cap add android
 
-      - name: Configure Android Permissions & Back Button
+      - name: Configure Android Permissions, Fit Screen & Back Button
         run: |
           FILE=android/app/src/main/AndroidManifest.xml
           sed -i 's#<manifest xmlns:android="http://schemas.android.com/apk/res/android">#<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />#' "$FILE"
@@ -36,14 +36,67 @@ jobs:
           cat << 'EOF' > "$MAIN_ACTIVITY"
           package com.rayyan.waweb;
 
+          import android.annotation.SuppressLint;
           import android.os.Bundle;
+          import android.webkit.WebSettings;
           import android.webkit.WebView;
+          import com.getcapacitor.Bridge;
           import com.getcapacitor.BridgeActivity;
+          import com.getcapacitor.WebViewListener;
 
           public class MainActivity extends BridgeActivity {
+              @SuppressLint("SetJavaScriptEnabled")
               @Override
               public void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
+
+                  try {
+                      Bridge bridge = this.getBridge();
+                      if (bridge != null) {
+                          WebView webView = bridge.getWebView();
+                          if (webView != null) {
+                              WebSettings settings = webView.getSettings();
+
+                              // 1. Force desktop web layout to fit mobile screen width:
+                              settings.setUseWideViewPort(true);
+                              settings.setLoadWithOverviewMode(true);
+
+                              // 2. Enable Pinch-to-Zoom (user can zoom in/out freely):
+                              settings.setSupportZoom(true);
+                              settings.setBuiltInZoomControls(true);
+                              settings.setDisplayZoomControls(false);
+
+                              // 3. Fix font zoom to 100% so system font settings do not break layout:
+                              settings.setTextZoom(100);
+
+                              // 4. Enable modern web features:
+                              settings.setDomStorageEnabled(true);
+                              settings.setDatabaseEnabled(true);
+                              settings.setJavaScriptEnabled(true);
+                          }
+
+                          // 5. Inject auto-fit styling when WhatsApp Web finishes loading:
+                          bridge.addWebViewListener(new WebViewListener() {
+                              @Override
+                              public void onPageLoaded(WebView webView) {
+                                  String js = "javascript:(function() {" +
+                                      "var meta = document.querySelector('meta[name="viewport"]');" +
+                                      "if (!meta) {" +
+                                      "  meta = document.createElement('meta');" +
+                                      "  meta.name = 'viewport';" +
+                                      "  document.head.appendChild(meta);" +
+                                      "}" +
+                                      "meta.content = 'width=1024, user-scalable=yes';" +
+                                      "document.documentElement.style.overflowX = 'hidden';" +
+                                      "document.body.style.overflowX = 'hidden';" +
+                                      "})();";
+                                  webView.evaluateJavascript(js, null);
+                              }
+                          });
+                      }
+                  } catch (Exception e) {
+                      e.printStackTrace();
+                  }
               }
 
               @Override
@@ -78,20 +131,20 @@ jobs:
         run: ./gradlew assembleDebug --stacktrace
 
       - name: Rename APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk WhatsApp-Companion.apk
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk WhatsApp-Companion-v1.0.1.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: WhatsApp-Companion-APK
-          path: WhatsApp-Companion.apk
+          name: WhatsApp-Companion-APK-v1.0.1
+          path: WhatsApp-Companion-v1.0.1.apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.0
-          name: "WhatsApp Companion v1.0.0 (Ad-Free)"
-          body: "Direct 1-click APK download for your phone. 100% Ad-Free, No Camera needed, supports phone number code login."
-          files: WhatsApp-Companion.apk
+          tag_name: v1.0.1
+          name: "WhatsApp Companion v1.0.1 (Vivo & Mobile Screen Fit Fix)"
+          body: "Direct 1-click APK download. Fixed screen fitting for Vivo V23e and all Android phones (Auto-scaled to fit screen + Pinch-to-zoom enabled)."
+          files: WhatsApp-Companion-v1.0.1.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
