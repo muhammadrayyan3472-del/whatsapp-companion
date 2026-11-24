@@ -1,0 +1,18 @@
+{
+  "appId": "com.rayyan.waweb",
+  "appName": "WhatsApp",
+  "webDir": "www",
+  "server": {
+    "url": "https://web.whatsapp.com",
+    "cleartext": false,
+    "allowNavigation": [
+      "web.whatsapp.com",
+      "*.whatsapp.com",
+      "*.whatsapp.net"
+    ]
+  },
+  "android": {
+    "allowMixedContent": true,
+    "overrideUserAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+  }
+}
