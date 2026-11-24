@@ -80,7 +80,11 @@ jobs:
                               @Override
                               public void onPageLoaded(WebView webView) {
                                   String js = "javascript:(function() {" +
-                                      "var meta = document.querySelector('meta[name="viewport"]');" +
+                                      "var meta = null;" +
+                                      "var metas = document.getElementsByTagName('meta');" +
+                                      "for (var i = 0; i < metas.length; i++) {" +
+                                      "  if (metas[i].name === 'viewport') { meta = metas[i]; break; }" +
+                                      "}" +
                                       "if (!meta) {" +
                                       "  meta = document.createElement('meta');" +
                                       "  meta.name = 'viewport';" +
@@ -143,7 +147,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.1
-          name: "WhatsApp Companion v1.0.1 (Vivo & Mobile Screen Fit Fix)"
+          name: "WhatsApp Companion v1.0.1 (Vivo V23e & Mobile Screen Fit Fix)"
           body: "Direct 1-click APK download. Fixed screen fitting for Vivo V23e and all Android phones (Auto-scaled to fit screen + Pinch-to-zoom enabled)."
           files: WhatsApp-Companion-v1.0.1.apk
         env:
